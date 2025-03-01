@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stock Trading</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #trading-log { 
+            height: 300px; 
+            overflow-y: auto; 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            text-align: left; 
+            background-color: #f9f9f9;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 10px; text-align: center; }
+        .log-entry { margin: 5px 0; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <h1>📈 Live Stock Trading Dashboard</h1>
+
+    <h2>Trading Log</h2>
+    <div id="trading-log"></div>
+
+    <h2>Market Summary</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Stock</th>
+                <th>Last Traded Price</th>
+                <th>Best Bid</th>
+                <th>Best Offer</th>
+            </tr>
+        </thead>
+        <tbody id="market-summary"></tbody>
+    </table>
+
+    <script>
+        const socket = io("http://localhost:5002", { transports: ["websocket"], reconnectionAttempts: 5 });
+
+        // Debugging connection
+        socket.on("connect", () => console.log("✅ WebSocket connected"));
+        socket.on("connect_error", (error) => console.error("❌ Connection error:", error));
+        socket.on("disconnect", () => console.warn("⚠️ Disconnected"));
+
+        // Function to add logs to the UI
+        function addLog(message) {
+            let logContainer = document.getElementById("trading-log");
+            let newEntry = document.createElement("div");
+            newEntry.classList.add("log-entry");
+            newEntry.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            
+            logContainer.appendChild(newEntry);
+            logContainer.scrollTop = logContainer.scrollHeight; // Auto-scroll
+
+            // Limit to last 100 logs
+            while (logContainer.childNodes.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        // Receive live trade updates
+        socket.on("trade_update", (data) => {
+            console.log("📢 Trade update received:", data);
+            addLog(data.message);
+        });
+
+        // Fetch market summary every 5 seconds
+        function fetchMarketSummary() {
+            fetch("http://localhost:5002/market_summary")
+                .then((response) => {
+                    if (!response.ok) throw new Error("❌ Failed to fetch market summary");
+                    return response.json();
+                })
+                .then((data) => {
+                    let tableBody = document.getElementById("market-summary");
+                    tableBody.innerHTML = ""; // Clear table
+
+                    for (let stock in data.last_prices) {
+                        let row = `<tr>
+                            <td>${stock}</td>
+                            <td>${data.last_prices[stock]}</td>
+                            <td>${data.top_bids_offers[stock]?.best_bid || "N/A"}</td>
+                            <td>${data.top_bids_offers[stock]?.best_offer || "N/A"}</td>
+                        </tr>`;
+                        tableBody.innerHTML += row;
+                    }
+                })
+                .catch(error => console.error("❌ Error fetching market data:", error));
+        }
+
+        setInterval(fetchMarketSummary, 5000); // Refresh market summary every 5 seconds
+    </script>
+
+</body>
+</html>
