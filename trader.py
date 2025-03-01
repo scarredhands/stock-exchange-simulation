@@ -70,7 +70,7 @@ class Trader:
     def __init__(self, trader_id, cash, exchange):
         self.trader_id = trader_id
         self.cash = cash
-        self.portfolio = {stock: random.randint(10, 50) for stock in STOCK_SYMBOLS}
+        self.portfolio = {stock: random.randint(1000, 5000) for stock in STOCK_SYMBOLS}
         self.oms = OrderManagementSystem(exchange)
 
     def execute_trade(self, order, price, counterparty):
